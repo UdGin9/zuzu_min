@@ -1,7 +1,7 @@
 use std::sync::{Arc, RwLock};
 use std::sync::mpsc;
 use std::thread;
-use log::info;
+use log::{info, error};
 use gstreamer as gst;
 use gstreamer_app::AppSink;
 use gst::prelude::*;
@@ -45,7 +45,6 @@ impl Camera {
             appsink.set_callbacks(
                 gstreamer_app::AppSinkCallbacks::builder()
                     .new_sample(move |sink| {
-                        info!("Camera got sample");
                         let sample = sink.pull_sample().map_err(|_| gst::FlowError::Eos)?;
                         let buffer = sample.buffer().unwrap();
                         let map = buffer.map_readable().unwrap();
@@ -54,9 +53,10 @@ impl Camera {
                         let mat = mat_ref.clone_pointee();
 
                         if tx.send(mat).is_err() {
+                            error!("Failed to send mat");
                             return Err(gst::FlowError::Eos);
                         }
-
+                        info!("Mat sent");
                         Ok(gst::FlowSuccess::Ok)
                     })
                     .build()
