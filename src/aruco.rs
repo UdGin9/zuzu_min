@@ -138,7 +138,6 @@ impl ArucoDetect {
 
             while *is_running.read().unwrap() {
                 let frame = rx.recv().ok();
-                info!("Frame received: {}", frame.is_some());
                 next_detect(&state, &detector, &board, &cam_matrix, &cam_dist_coeffs, &cam_rot_mtx, frame, &socket);
 
                 //TODO: добавить отправку через mavlink
@@ -231,7 +230,7 @@ fn next_detect(
     let mut final_rot = Mat::default();
     gemm(&rot_t, &cam_rot_mat, 1.0, &Mat::default(), 0.0, &mut final_rot, 0).unwrap();
 
-    // Отрисовка маркеров
+    // маркеры рисуем
     let mut frame_out = frame.clone();
     opencv::objdetect::draw_detected_markers(
         &mut frame_out,
@@ -240,13 +239,12 @@ fn next_detect(
         opencv::core::Scalar::new(0.0, 255.0, 0.0, 0.0),
     ).unwrap();
 
-    // Кодируем в JPEG
+    // кодировка в jpeg
     let mut buf = Vector::<u8>::new();
     let params = Vector::from_slice(&[opencv::imgcodecs::IMWRITE_JPEG_QUALITY, 50]);
     opencv::imgcodecs::imencode(".jpg", &frame_out, &mut buf, &params).unwrap();
 
     let data = buf.to_vec();
-    info!("Sending frame: {} bytes", data.len());
     if data.len() < 65000 {
         socket.send_to(&data, "192.168.31.253:5432").ok();
     } else {
@@ -265,6 +263,8 @@ fn next_detect(
         *pos.at_2d::<f64>(2, 0).unwrap(),
     ]);
     st.last_rot  = Some(euler_from_matrix(mat_to_mat4(&final_rot)));
+    info!("Позиция: {:?}", st.last_pos);
+    info!("Rot: {:?}", st.last_rot);
     st.last_time = Some(now);
 
 }

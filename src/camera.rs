@@ -57,10 +57,9 @@ impl Camera {
 
 
                         if tx.send(mat_2d).is_err() {
-                            error!("Failed to send mat");
+                            error!("Failed to send frame to Aruco");
                             return Err(gst::FlowError::Eos);
                         }
-                        info!("Mat sent");
                         Ok(gst::FlowSuccess::Ok)
                     })
                     .build()
