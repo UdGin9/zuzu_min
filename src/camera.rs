@@ -45,6 +45,7 @@ impl Camera {
             appsink.set_callbacks(
                 gstreamer_app::AppSinkCallbacks::builder()
                     .new_sample(move |sink| {
+                        info!("Camera got sample");
                         let sample = sink.pull_sample().map_err(|_| gst::FlowError::Eos)?;
                         let buffer = sample.buffer().unwrap();
                         let map = buffer.map_readable().unwrap();
