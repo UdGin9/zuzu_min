@@ -119,6 +119,8 @@ impl ArucoDetect {
             let refine_params = RefineParameters::new_def().unwrap();
             let detector = ArucoDetector::new(&dict, &detector_params, refine_params).unwrap();
             let board = build_board(&dict);
+            let socket = std::net::UdpSocket::bind("0.0.0.0:0").unwrap();
+
 
             let cam_matrix = Mat::from_slice_2d(&[
                 [375.9934_f64, 0.0, 339.748],
@@ -136,7 +138,7 @@ impl ArucoDetect {
 
             while *is_running.read().unwrap() {
                 let frame = rx.recv().ok();
-                let socket = std::net::UdpSocket::bind("0.0.0.0:0").unwrap();
+                info!("Frame received: {}", frame.is_some());
                 next_detect(&state, &detector, &board, &cam_matrix, &cam_dist_coeffs, &cam_rot_mtx, frame, &socket);
 
                 //TODO: добавить отправку через mavlink

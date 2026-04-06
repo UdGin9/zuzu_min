@@ -6,6 +6,7 @@ use gstreamer as gst;
 use gstreamer_app::AppSink;
 use gst::prelude::*;
 use opencv::core::Mat;
+use opencv::prelude::MatTraitConst;
 
 pub struct Camera {
     tx: mpsc::Sender<Mat>,
@@ -52,7 +53,10 @@ impl Camera {
                         let mat_ref = Mat::from_slice(map.as_slice()).unwrap();
                         let mat = mat_ref.clone_pointee();
 
-                        if tx.send(mat).is_err() {
+                        let mat_2d = mat.reshape(3, 480).unwrap().try_clone().unwrap();
+
+
+                        if tx.send(mat_2d).is_err() {
                             error!("Failed to send mat");
                             return Err(gst::FlowError::Eos);
                         }
