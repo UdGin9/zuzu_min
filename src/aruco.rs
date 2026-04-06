@@ -226,11 +226,12 @@ fn next_detect(
     let mut pos = Mat::default();
     gemm(&rot_t, &t_vec, -1.0, &Mat::default(), 0.0, &mut pos, 0).unwrap();
 
-    let cam_rot_mat = Mat::from_slice_2d(cam_rot_mtx).unwrap();
-    let mut final_rot = Mat::default();
-    gemm(&rot_t, &cam_rot_mat, 1.0, &Mat::default(), 0.0, &mut final_rot, 0).unwrap();
+    // let cam_rot_mat = Mat::from_slice_2d(cam_rot_mtx).unwrap();
+    // let mut final_rot = Mat::default();
+    // gemm(&rot_t, &cam_rot_mat, 1.0, &Mat::default(), 0.0, &mut final_rot, 0).unwrap();
+    let final_rot = rot_t.clone();
 
-    // маркеры рисуем
+    // отрисовка маркеров
     let mut frame_out = frame.clone();
     opencv::objdetect::draw_detected_markers(
         &mut frame_out,
