@@ -242,7 +242,8 @@ fn next_detect(
 
     // Кодируем в JPEG
     let mut buf = Vector::<u8>::new();
-    opencv::imgcodecs::imencode(".jpg", &frame_out, &mut buf, &Vector::new()).unwrap();
+    let params = Vector::from_slice(&[opencv::imgcodecs::IMWRITE_JPEG_QUALITY, 50]);
+    opencv::imgcodecs::imencode(".jpg", &frame_out, &mut buf, &params).unwrap();
 
     let data = buf.to_vec();
     info!("Sending frame: {} bytes", data.len());
