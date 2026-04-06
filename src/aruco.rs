@@ -136,7 +136,7 @@ impl ArucoDetect {
 
             while *is_running.read().unwrap() {
                 let frame = rx.recv().ok();
-                let socket = std::net::UdpSocket::bind("10.42.0.26").unwrap();
+                let socket = std::net::UdpSocket::bind("0.0.0.0").unwrap();
                 next_detect(&state, &detector, &board, &cam_matrix, &cam_dist_coeffs, &cam_rot_mtx, frame, &socket);
 
                 //TODO: добавить отправку через mavlink
@@ -243,7 +243,7 @@ fn next_detect(
 
     let data = buf.to_vec();
     if data.len() < 65000 {
-        socket.send_to(&data, "192.168.31.138:5432").ok();
+        socket.send_to(&data, "10.42.0.26:5432").ok();
     } else {
         log::warn!("Frame too large for UDP: {} bytes", data.len());
     }
