@@ -168,6 +168,7 @@ fn next_detect(
 
     let Some(frame) = frame else {
         let mut st = state.write().unwrap();
+        info!("No frame");
         st.reset_pose();
         return;
     };
