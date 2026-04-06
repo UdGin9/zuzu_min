@@ -1,6 +1,6 @@
 use crate::utils::{rotation_matrix_euler, euler_from_matrix, mat_to_mat4};
-use std::sync::{Arc, RwLock};
-use std::time::{Duration,Instant};
+use std::sync::{Arc, RwLock, mpsc};
+use std::time::{Instant};
 use log::info;
 use std::thread;
 use opencv::objdetect::{
@@ -12,7 +12,7 @@ use opencv::objdetect::{
     Board,
 };
 use opencv::core::{Mat, Point3f, Vector, transpose, gemm};
-use opencv::prelude::{ArucoDetectorTraitConst, BoardTraitConst, MatTraitConst};
+use opencv::prelude::{ArucoDetectorTraitConst, BoardTraitConst, MatTraitConst, VectorToVec};
 use opencv::calib3d::{solve_pnp, SOLVEPNP_ITERATIVE, rodrigues};
 
 const SEND_PERIOD: f64 = 0.066;
@@ -110,7 +110,7 @@ impl ArucoDetect {
         }
     }
 
-    pub fn run_in_background(&mut self, is_running: Arc<RwLock<bool>>) {
+    pub fn run_in_background(&mut self, is_running: Arc<RwLock<bool>>, rx: mpsc::Receiver<Mat>) {
         let state = Arc::clone(&self.state);
 
         thread::spawn(move || {
@@ -135,8 +135,10 @@ impl ArucoDetect {
             info!("Started Aruco detector");
 
             while *is_running.read().unwrap() {
-                next_detect(&state, &detector, &board, &cam_matrix, &cam_dist_coeffs, &cam_rot_mtx);
-                thread::sleep(Duration::from_millis(10)); // под фпс камеры наверное подобрать
+                let frame = rx.recv().ok();
+                let socket = std::net::UdpSocket::bind("0.0.0.0:0").unwrap();
+                next_detect(&state, &detector, &board, &cam_matrix, &cam_dist_coeffs, &cam_rot_mtx, frame, &socket);
+
                 //TODO: добавить отправку через mavlink
             }
 
@@ -154,14 +156,15 @@ impl ArucoDetect {
 }
 
 fn next_detect(
-    state:               &Arc<RwLock<ArucoState>>,
+    state:           &Arc<RwLock<ArucoState>>,
     detector:        &ArucoDetector,
     board:           &Board,
     cam_matrix:      &Mat,
     cam_dist_coeffs: &Mat,
     cam_rot_mtx:     &[[f64; 3]; 3],
+    frame:           Option<Mat>,
+    socket:          &std::net::UdpSocket,
 ) {
-    let frame: Option<Mat> = None; // TODO: получение кадра
 
     let Some(frame) = frame else {
         let mut st = state.write().unwrap();
@@ -225,7 +228,26 @@ fn next_detect(
     let mut final_rot = Mat::default();
     gemm(&rot_t, &cam_rot_mat, 1.0, &Mat::default(), 0.0, &mut final_rot, 0).unwrap();
 
-    // TODO: добавь отправку по UDP обработанного кадра
+    // Отрисовка маркеров
+    let mut frame_out = frame.clone();
+    opencv::objdetect::draw_detected_markers(
+        &mut frame_out,
+        &corners,
+        &ids,
+        opencv::core::Scalar::new(0.0, 255.0, 0.0, 0.0),
+    ).unwrap();
+
+    // Кодируем в JPEG
+    let mut buf = Vector::<u8>::new();
+    opencv::imgcodecs::imencode(".jpg", &frame_out, &mut buf, &Vector::new()).unwrap();
+
+    let data = buf.to_vec();
+    if data.len() < 65000 {
+        socket.send_to(&data, "192.168.31.138:5432").ok();
+    } else {
+        log::warn!("Frame too large for UDP: {} bytes", data.len());
+    }
+
 
     let now = Instant::now();
     let mut st = state.write().unwrap();
@@ -239,4 +261,5 @@ fn next_detect(
     ]);
     st.last_rot  = Some(euler_from_matrix(mat_to_mat4(&final_rot)));
     st.last_time = Some(now);
+
 }

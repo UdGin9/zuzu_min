@@ -5,5 +5,7 @@ edition = "2024"
 
 [dependencies]
 env_logger = "0.11.10"
+gstreamer = "0.24.5"
+gstreamer-app = "0.24.5"
 log = "0.4.29"
 opencv = "0.98.2"
