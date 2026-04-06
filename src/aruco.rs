@@ -242,6 +242,7 @@ fn next_detect(
     opencv::imgcodecs::imencode(".jpg", &frame_out, &mut buf, &Vector::new()).unwrap();
 
     let data = buf.to_vec();
+    info!("Sending frame: {} bytes", data.len());
     if data.len() < 65000 {
         socket.send_to(&data, "192.168.31.242:5432").ok();
     } else {
