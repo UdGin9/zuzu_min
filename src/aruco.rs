@@ -136,7 +136,7 @@ impl ArucoDetect {
 
             while *is_running.read().unwrap() {
                 let frame = rx.recv().ok();
-                let socket = std::net::UdpSocket::bind("0.0.0.0.0").unwrap();
+                let socket = std::net::UdpSocket::bind("0.0.0.0:0").unwrap();
                 next_detect(&state, &detector, &board, &cam_matrix, &cam_dist_coeffs, &cam_rot_mtx, frame, &socket);
 
                 //TODO: добавить отправку через mavlink
