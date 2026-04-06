@@ -243,7 +243,7 @@ fn next_detect(
 
     let data = buf.to_vec();
     if data.len() < 65000 {
-        socket.send_to(&data, "10.42.0.26:5432").ok();
+        socket.send_to(&data, "192.168.31.242:5432").ok();
     } else {
         log::warn!("Frame too large for UDP: {} bytes", data.len());
     }
