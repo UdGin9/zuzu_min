@@ -191,15 +191,10 @@ fn next_detect(
         cam_matrix, cam_dist_coeffs, &mut recovered,
     ).unwrap();
     
-    let mut frame_out = frame.clone();
 
-    if ids.empty() {
-        let mut st = state.write().unwrap();
-        st.reset_pose();
-        return;
-    }
-    // отрисовка маркеров
-    else {
+    // отправка и отрисовка фреймов
+    let mut frame_out = frame.clone();
+    if !ids.empty() {
         opencv::objdetect::draw_detected_markers(
             &mut frame_out,
             &corners,
@@ -208,16 +203,18 @@ fn next_detect(
         ).unwrap();
     }
 
-    // кодировка в jpeg
     let mut buf = Vector::<u8>::new();
     let params = Vector::from_slice(&[opencv::imgcodecs::IMWRITE_JPEG_QUALITY, 50]);
     opencv::imgcodecs::imencode(".jpg", &frame_out, &mut buf, &params).unwrap();
-
     let data = buf.to_vec();
     if data.len() < 65000 {
         socket.send_to(&data, "192.168.31.5:5432").ok();
-    } else {
-        log::warn!("Frame too large for UDP: {} bytes", data.len());
+    }
+
+    if ids.empty() {
+        let mut st = state.write().unwrap();
+        st.reset_pose();
+        return;
     }
 
     let mut obj_points = Mat::default();
