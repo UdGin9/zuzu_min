@@ -18,11 +18,10 @@ use opencv::calib3d::{solve_pnp, SOLVEPNP_ITERATIVE, rodrigues};
 const SEND_PERIOD: f64 = 0.066;
 
 fn cam_rot_mtx() -> [[f64; 3]; 3] {
-    let m = rotation_matrix_euler(0.0, 0.0, -90.0);
     [
-        [m[0][0], m[0][1], m[0][2]],
-        [m[1][0], m[1][1], m[1][2]],
-        [m[2][0], m[2][1], m[2][2]],
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0],
     ]
 }
 
