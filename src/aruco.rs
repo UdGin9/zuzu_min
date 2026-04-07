@@ -127,10 +127,14 @@ impl ArucoDetect {
                 [0.0, 373.8946, 212.6516],
                 [0.0, 0.0, 1.0],
             ]).unwrap().try_clone().unwrap();
-
-            let cam_dist_coeffs = Mat::from_exact_iter(
-                vec![-0.3567_f64, 0.1101, 0.0093, -0.0017, 0.0104].into_iter()
-            ).unwrap();
+            
+            let cam_dist_coeffs = Mat::from_slice_2d(&[
+                [-0.3567_f64],
+                [0.1101],
+                [0.0093],
+                [-0.0017],
+                [0.0104],
+            ]).unwrap().try_clone().unwrap();
 
             let cam_rot_mtx = cam_rot_mtx();
 
@@ -181,15 +185,39 @@ fn next_detect(
     detector.detect_markers(&frame, &mut corners, &mut ids, &mut rejected).unwrap();
 
     let mut recovered = Mat::default();
+
     detector.refine_detected_markers(
         &frame, board, &mut corners, &mut ids, &mut rejected,
         cam_matrix, cam_dist_coeffs, &mut recovered,
     ).unwrap();
+    
+    let mut frame_out = frame.clone();
 
     if ids.empty() {
         let mut st = state.write().unwrap();
         st.reset_pose();
         return;
+    }
+    // отрисовка маркеров
+    else {
+        opencv::objdetect::draw_detected_markers(
+            &mut frame_out,
+            &corners,
+            &ids,
+            opencv::core::Scalar::new(0.0, 255.0, 0.0, 0.0),
+        ).unwrap();
+    }
+
+    // кодировка в jpeg
+    let mut buf = Vector::<u8>::new();
+    let params = Vector::from_slice(&[opencv::imgcodecs::IMWRITE_JPEG_QUALITY, 50]);
+    opencv::imgcodecs::imencode(".jpg", &frame_out, &mut buf, &params).unwrap();
+
+    let data = buf.to_vec();
+    if data.len() < 65000 {
+        socket.send_to(&data, "192.168.31.253:5432").ok();
+    } else {
+        log::warn!("Frame too large for UDP: {} bytes", data.len());
     }
 
     let mut obj_points = Mat::default();
@@ -226,32 +254,9 @@ fn next_detect(
     let mut pos = Mat::default();
     gemm(&rot_t, &t_vec, -1.0, &Mat::default(), 0.0, &mut pos, 0).unwrap();
 
-    // let cam_rot_mat = Mat::from_slice_2d(cam_rot_mtx).unwrap();
-    // let mut final_rot = Mat::default();
-    // gemm(&rot_t, &cam_rot_mat, 1.0, &Mat::default(), 0.0, &mut final_rot, 0).unwrap();
-    let final_rot = rot_t.clone();
-
-    // отрисовка маркеров
-    let mut frame_out = frame.clone();
-    opencv::objdetect::draw_detected_markers(
-        &mut frame_out,
-        &corners,
-        &ids,
-        opencv::core::Scalar::new(0.0, 255.0, 0.0, 0.0),
-    ).unwrap();
-
-    // кодировка в jpeg
-    let mut buf = Vector::<u8>::new();
-    let params = Vector::from_slice(&[opencv::imgcodecs::IMWRITE_JPEG_QUALITY, 50]);
-    opencv::imgcodecs::imencode(".jpg", &frame_out, &mut buf, &params).unwrap();
-
-    let data = buf.to_vec();
-    if data.len() < 65000 {
-        socket.send_to(&data, "192.168.31.253:5432").ok();
-    } else {
-        log::warn!("Frame too large for UDP: {} bytes", data.len());
-    }
-
+    let cam_rot_mat = Mat::from_slice_2d(cam_rot_mtx).unwrap();
+    let mut final_rot = Mat::default();
+    gemm(&rot_t, &cam_rot_mat, 1.0, &Mat::default(), 0.0, &mut final_rot, 0).unwrap();
 
     let now = Instant::now();
     let mut st = state.write().unwrap();
